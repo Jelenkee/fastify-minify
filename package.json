@@ -1,0 +1,35 @@
+{
+  "name": "fastify-minify",
+  "version": "1.0.0",
+  "description": "Minification plugin for Fastify",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jelenkee/fastify-minify.git"
+  },
+  "keywords": [
+    "fastify",
+    "minify"
+  ],
+  "author": "Jelenkee",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Jelenkee/fastify-minify/issues"
+  },
+  "homepage": "https://github.com/Jelenkee/fastify-minify#readme",
+  "dependencies": {
+    "csso": "^4.2.0",
+    "fastify-plugin": "^3.0.0",
+    "get-stream": "^6.0.0",
+    "html-minifier-terser": "^5.1.1",
+    "quick-lru": "^5.1.1",
+    "terser": "^5.5.1"
+  },
+  "devDependencies": {
+    "fastify": "^3.9.1",
+    "fastify-static": "^3.3.0"
+  }
+}
