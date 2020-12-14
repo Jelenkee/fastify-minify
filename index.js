@@ -15,9 +15,16 @@ const DEFAULT_HTML_OPTIONS = {
     removeComments: true,
     collapseWhitespace: true
 };
-const DEFAULT_JS_OPTIONS = {};
+const DEFAULT_JS_OPTIONS = {
+    sourceMap: false,
+    compress: true,
+    mangle: true
+};
 const DEFAULT_CSS_OPTIONS = {};
 const DEFAULT_CACHE_SIZE = 1000;
+const DEFAULT_SUFFIXES = ["js", "css", "html"];
+
+const PLUGIN_SYMBOL = Symbol.for("registered-plugin");
 
 let lru;
 
@@ -28,31 +35,57 @@ function plugin(instance, opts, done) {
     const cssOptions = Object.assign({}, DEFAULT_CSS_OPTIONS, opts.cssOptions);
 
     const cacheSize = opts.cacheSize == null ? null : typeof opts.cacheSize === "number" ? opts.cacheSize : DEFAULT_CACHE_SIZE;
+    const validate = typeof opts.validate === "function" ? opts.validate : () => true;
 
-    if (opts.global || true) {
+    const suffixes = opts.suffixes || DEFAULT_SUFFIXES;
+
+
+    if (opts.global || opts.minInfix) {
         instance.addHook("onSend", (req, rep, payload, done) => {
-            const contentType = rep.getHeader("content-type") || "";
-            if (true) {
-                done(null, "paradis")
-                return;
-            }
-            if (payload) {
-                if (contentType.includes("application/javascript")) {
-                    const t1 = new Date().getTime()
-                    toStringPromise(payload)
-                        .then(pl => { console.log(new Date().getTime() - t1); return pl })
-                        .then(pl => { console.log(new Date().getTime() - t1); return minifyJS(pl) })
-                        .then(pl => { console.log(new Date().getTime() - t1); return done(null, "party") })
-                        .catch(err => done(err))
-                } else {
-                    done(null, payload)
+            if (payload && (opts.global || (opts.minInfix && req.mini))) {
+                const contentType = rep.getHeader("content-type") || "";
+                if (contentType.includes("application/javascript") || contentType.includes("text/javascript")) {
+                    if (minify(req, rep, payload, minifyJS, done)) { return; }
+                } else if (contentType.includes("text/css")) {
+                    if (minify(req, rep, payload, minifyCSS, done)) { return; }
+                } else if (contentType.includes("application/xhtml+xml") || contentType.includes("text/html")) {
+                    if (minify(req, rep, payload, minifyHTML, done)) { return; }
                 }
-            } else {
-                done(null, payload);
             }
+            done(null, payload);
         })
+        function minify(req, rep, payload, miniFunction, done) {
+            if (validate(req, rep, payload)) {
+                rep.header("content-length", null);
+                return toStringPromise(payload)
+                    .then(pl => miniFunction(pl))
+                    .then(pl => done(null, pl))
+                    .catch(err => done(err))
+            }
+        }
     }
 
+    instance.ready().finally(() => {
+        if (opts.minInfix && instance[PLUGIN_SYMBOL].indexOf("fastify-static") === -1)
+            throw new Error("fastify-static is not present")
+    })
+
+    if (opts.minInfix) {
+        instance.decorateRequest("mini", false);
+        instance.addHook("onRequest", (req, rep, done) => {
+            if (req.method === "GET"
+                && typeof req.context.config.url === "string"
+                && req.context.config.url.endsWith("/*")
+                && typeof req.params["*"] === "string"
+                && suffixes.some(s => req.params["*"].endsWith(".min." + s))
+            ) {
+                req.mini = true;
+                req.params["*"] = req.params["*"].replace(/\.min/, "");
+                //check if rewriteurl is possible
+            }
+            done();
+        })
+    }
 
     if (cacheSize) {
         lru = new LRU({ maxSize: cacheSize });
@@ -61,22 +94,17 @@ function plugin(instance, opts, done) {
     function minifyHTML(value, callback) {
         const cachedValue = getCachedValue(HTML_PREFIX, value);
         if (cachedValue != null) {
-            return cachedValue;
+            return choose(cachedValue, callback);
         }
         const result = htmlMinifier.minify(value, htmlOptions);
         setCachedValue(HTML_PREFIX, value, result);
-        if (typeof callback === "function") {
-            callback(null, result);
-        } else {
-            return Promise.resolve(result);
-        }
+        return choose(result, callback);
     }
     function minifyJS(value, callback) {
         const cachedValue = getCachedValue(JS_PREFIX, value);
         if (cachedValue != null) {
-            return cachedValue;
+            return choose(cachedValue, callback);
         }
-        const t1 = new Date().getTime();
         const promise = terser.minify(value, jsOptions)
             .then(result => setCachedValue(JS_PREFIX, value, result.code));
         if (typeof callback === "function") {
@@ -90,15 +118,11 @@ function plugin(instance, opts, done) {
     function minifyCSS(value, callback) {
         const cachedValue = getCachedValue(CSS_PREFIX, value);
         if (cachedValue != null) {
-            return cachedValue;
+            return choose(cachedValue, callback);
         }
         const result = csso.minify(value, cssOptions).css;
         setCachedValue(CSS_PREFIX, value, result);
-        if (typeof callback === "function") {
-            callback(null, result);
-        } else {
-            return Promise.resolve(result);
-        }
+        return choose(result, callback);
     }
     instance.decorate("minifyHTML", minifyHTML);
     instance.decorate("minifyJS", minifyJS);
@@ -106,25 +130,26 @@ function plugin(instance, opts, done) {
     done();
 }
 
-function getCachedValue(prefix, key) {
-    if (!lru) {
-        return;
+function choose(result, callback) {
+    if (typeof callback === "function") {
+        return callback(null, result);
+    } else {
+        return Promise.resolve(result);
     }
+}
+
+function getCachedValue(prefix, key) {
+    if (!lru) { return; }
     return lru.get(prefix + key);
 }
 
 function setCachedValue(prefix, key, value) {
-    if (!lru) {
-        return value;
-    }
+    if (!lru) { return value; }
     lru.set(prefix + key, value);
     return value;
 }
 
 function toStringPromise(value) {
-    if (value == null) {
-        return Promise.resolve(value);
-    }
     const type = typeof value;
 
     if (type === "string") {
