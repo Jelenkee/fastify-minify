@@ -9,24 +9,22 @@ const HTML_PREFIX = "%HTML§";
 const JS_PREFIX = "%JS§";
 const CSS_PREFIX = "%CSS§";
 
-const DEFAULT_HTML_OPTIONS = {
-    minifyCSS: true,
-    minifyJS: true,
-    removeComments: true,
-    collapseWhitespace: true
-};
 const DEFAULT_JS_OPTIONS = {
     sourceMap: false,
     compress: true,
     mangle: true
 };
 const DEFAULT_CSS_OPTIONS = {};
+const DEFAULT_HTML_OPTIONS = {
+    removeComments: true,
+    collapseWhitespace: true,
+    minifyCSS: true,
+    minifyJS: DEFAULT_JS_OPTIONS
+};
 const DEFAULT_CACHE_SIZE = 1000;
 const DEFAULT_SUFFIXES = ["js", "css", "html"];
 
 const PLUGIN_SYMBOL = Symbol.for("registered-plugin");
-
-let lru;
 
 function plugin(instance, opts, done) {
     opts = opts || {};
@@ -35,20 +33,21 @@ function plugin(instance, opts, done) {
     const cssOptions = Object.assign({}, DEFAULT_CSS_OPTIONS, opts.cssOptions);
 
     const cacheSize = opts.cacheSize == null ? null : typeof opts.cacheSize === "number" ? opts.cacheSize : DEFAULT_CACHE_SIZE;
+    const lru = cacheSize ? new LRU({ maxSize: cacheSize }) : null;
     const validate = typeof opts.validate === "function" ? opts.validate : () => true;
+    const minInfixFunction = typeof opts.minInfix === "function" ? opts.minInfix : opts.minInfix ? () => true : null;
 
     const suffixes = opts.suffixes || DEFAULT_SUFFIXES;
 
-
-    if (opts.global || opts.minInfix) {
+    if (opts.global || minInfixFunction) {
         instance.addHook("onSend", (req, rep, payload, done) => {
-            if (payload && (opts.global || (opts.minInfix && req.mini))) {
+            if (payload && (opts.global || (minInfixFunction && req.mini))) {
                 const contentType = rep.getHeader("content-type") || "";
                 if (contentType.includes("application/javascript") || contentType.includes("text/javascript")) {
                     if (minify(req, rep, payload, minifyJS, done)) { return; }
                 } else if (contentType.includes("text/css")) {
                     if (minify(req, rep, payload, minifyCSS, done)) { return; }
-                } else if (contentType.includes("application/xhtml+xml") || contentType.includes("text/html")) {
+                } else if (contentType.includes("text/html")) {
                     if (minify(req, rep, payload, minifyHTML, done)) { return; }
                 }
             }
@@ -65,12 +64,7 @@ function plugin(instance, opts, done) {
         }
     }
 
-    instance.ready().finally(() => {
-        if (opts.minInfix && instance[PLUGIN_SYMBOL].indexOf("fastify-static") === -1)
-            throw new Error("fastify-static is not present")
-    })
-
-    if (opts.minInfix) {
+    if (minInfixFunction) {
         instance.decorateRequest("mini", false);
         instance.addHook("onRequest", (req, rep, done) => {
             if (req.method === "GET"
@@ -78,18 +72,19 @@ function plugin(instance, opts, done) {
                 && req.context.config.url.endsWith("/*")
                 && typeof req.params["*"] === "string"
                 && suffixes.some(s => req.params["*"].endsWith(".min." + s))
+                && minInfixFunction(req)
             ) {
                 req.mini = true;
                 req.params["*"] = req.params["*"].replace(/\.min/, "");
-                //check if rewriteurl is possible
             }
             done();
         })
     }
 
-    if (cacheSize) {
-        lru = new LRU({ maxSize: cacheSize });
-    }
+    instance.ready().finally(() => {
+        if (minInfixFunction && instance[PLUGIN_SYMBOL].indexOf("fastify-static") === -1)
+            throw new Error("fastify-static is not present. Either register it or disable minInfix.")
+    })
 
     function minifyHTML(value, callback) {
         const cachedValue = getCachedValue(HTML_PREFIX, value);
@@ -100,6 +95,7 @@ function plugin(instance, opts, done) {
         setCachedValue(HTML_PREFIX, value, result);
         return choose(result, callback);
     }
+
     function minifyJS(value, callback) {
         const cachedValue = getCachedValue(JS_PREFIX, value);
         if (cachedValue != null) {
@@ -115,18 +111,33 @@ function plugin(instance, opts, done) {
             return promise;
         }
     }
+
     function minifyCSS(value, callback) {
         const cachedValue = getCachedValue(CSS_PREFIX, value);
         if (cachedValue != null) {
             return choose(cachedValue, callback);
         }
+
         const result = csso.minify(value, cssOptions).css;
         setCachedValue(CSS_PREFIX, value, result);
         return choose(result, callback);
     }
+
+    function getCachedValue(prefix, key) {
+        if (!lru) { return; }
+        return lru.get(prefix + key);
+    }
+
+    function setCachedValue(prefix, key, value) {
+        if (!lru) { return value; }
+        lru.set(prefix + key, value);
+        return value;
+    }
+
     instance.decorate("minifyHTML", minifyHTML);
     instance.decorate("minifyJS", minifyJS);
     instance.decorate("minifyCSS", minifyCSS);
+    
     done();
 }
 
@@ -136,17 +147,6 @@ function choose(result, callback) {
     } else {
         return Promise.resolve(result);
     }
-}
-
-function getCachedValue(prefix, key) {
-    if (!lru) { return; }
-    return lru.get(prefix + key);
-}
-
-function setCachedValue(prefix, key, value) {
-    if (!lru) { return value; }
-    lru.set(prefix + key, value);
-    return value;
 }
 
 function toStringPromise(value) {
@@ -163,7 +163,6 @@ function toStringPromise(value) {
     }
     throw new Error("unsupported type");
 }
-
 
 module.exports = fp(plugin, {
     fastify: ">=3.x.x",

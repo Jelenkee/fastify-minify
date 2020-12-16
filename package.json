@@ -12,7 +12,9 @@
   },
   "keywords": [
     "fastify",
-    "minify"
+    "minify",
+    "minifier",
+    "plugin"
   ],
   "author": "Jelenkee",
   "license": "MIT",
@@ -29,7 +31,7 @@
     "terser": "^5.5.1"
   },
   "devDependencies": {
-    "fastify": "^3.9.1",
+    "fastify": "^3.9.2",
     "fastify-static": "^3.3.0",
     "tap": "^14.11.0"
   }
