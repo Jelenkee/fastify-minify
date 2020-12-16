@@ -5,7 +5,8 @@ const fastify = new Fastify({
 });
 
 const fs = require("fastify-static");
-fastify.register(require("./index"), {
+const fm = require("./index");
+fastify.register(fm, {
     cacheSize: 99,
     //global: true,
     minInfix: true
