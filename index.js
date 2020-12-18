@@ -4,6 +4,7 @@ const terser = require("terser");
 const csso = require("csso");
 const LRU = require("quick-lru");
 const getStream = require("get-stream");
+require("array-flat-polyfill");
 
 const DEFAULT_JS_OPTIONS = {
     sourceMap: false,
