@@ -4,7 +4,7 @@
   "description": "Minification and transformation plugin for Fastify",
   "main": "index.js",
   "scripts": {
-    "test": "tap --no-coverage-report --jobs=1 -t 30 test.js"
+    "test": "tap --no-coverage-report --jobs=1 -t 60 test.js"
   },
   "repository": {
     "type": "git",
