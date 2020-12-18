@@ -20,7 +20,7 @@ fastify.get("/minfiedCSS", function (req, rep) {
 
 ```
 
-Three methods are added to the fastify instance. `minifyHTML`, `minifyJS` and `minifyCSS`. All of them take a string as input and an optional callback (`function(err, result)`). If no callback is provided, they will return a promise.
+Three methods are added to the fastify instance. `minifyHTML`, `minifyJS` and `minifyCSS`. All of them take a string as input and return a promise.
 
 By default no response is minified automatically. You can enable it with `global` or `minInfix`.
 

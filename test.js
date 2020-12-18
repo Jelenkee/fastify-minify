@@ -11,7 +11,7 @@ const mainJS = fs.readFileSync(path.join(__dirname, "testfiles", "public", "main
 const mainHTML = fs.readFileSync(path.join(__dirname, "testfiles", "index.html")).toString();
 
 test("decorators", t => {
-    t.plan(11);
+    t.plan(8);
 
     const fastify = newFastify();
 
@@ -27,10 +27,6 @@ test("decorators", t => {
         t.equal(await fastify.minifyHTML(html1), html2);
         t.equal(await fastify.minifyJS(js1), js2);
         t.equal(await fastify.minifyCSS(css1), css2);
-
-        fastify.minifyHTML(html1, (err, result) => t.equal(result, html2));
-        fastify.minifyJS(js1, (err, result) => t.equal(result, js2));
-        fastify.minifyCSS(css1, (err, result) => t.equal(result, css2));
 
         t.rejects(fastify.minifyHTML("<a  href = \"#\"> < / a>"));
         t.rejects(fastify.minifyJS("const {{ let ("));

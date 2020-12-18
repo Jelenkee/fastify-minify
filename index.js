@@ -81,22 +81,15 @@ function plugin(instance, opts, done) {
         const oldFunc = transformer.func;
         const promisedFunc = async v => oldFunc(v);
         const useCache = "useCache" in transformer ? transformer.useCache : true;
-        transformer.func = (value, callback) => {
+        transformer.func = (value) => {
             if (useCache) {
                 const cachedValue = getCachedValue(prefix, value);
                 if (cachedValue != null) {
-                    return choose(cachedValue, callback);
+                    return Promise.resolve(cachedValue);
                 }
             }
-            const promise = promisedFunc(value)
+            return promisedFunc(value)
                 .then(result => useCache ? setCachedValue(prefix, value, result) : result);
-            if (typeof callback === "function") {
-                promise
-                    .then(result => callback(null, result))
-                    .catch(error => callback(error))
-            } else {
-                return promise;
-            }
         }
     }
 
@@ -166,14 +159,6 @@ function plugin(instance, opts, done) {
     })
 
     done();
-}
-
-function choose(result, callback, isError) {
-    if (typeof callback === "function") {
-        return isError ? callback(result) : callback(null, result);
-    } else {
-        return isError ? Promise.reject(result) : Promise.resolve(result);
-    }
 }
 
 function toStringPromise(value) {
