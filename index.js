@@ -21,7 +21,6 @@ const DEFAULT_HTML_OPTIONS = {
     minifyCSS: true,
     minifyJS: DEFAULT_JS_OPTIONS
 };
-const DEFAULT_CACHE_SIZE = 1000;
 const DEFAULT_SUFFIXES = ["js", "css", "html"];
 
 const PLUGIN_SYMBOL = Symbol.for("registered-plugin");
@@ -32,16 +31,16 @@ function plugin(instance, opts, done) {
     const jsOptions = Object.assign({}, DEFAULT_JS_OPTIONS, opts.jsOptions);
     const cssOptions = Object.assign({}, DEFAULT_CSS_OPTIONS, opts.cssOptions);
 
-    const cacheSize = opts.cacheSize == null ? null : typeof opts.cacheSize === "number" ? opts.cacheSize : DEFAULT_CACHE_SIZE;
+    const cacheSize = opts.cacheSize == null ? null : opts.cacheSize;
     const lru = cacheSize ? new LRU({ maxSize: cacheSize }) : null;
     const validate = typeof opts.validate === "function" ? opts.validate : () => true;
     const minInfixFunction = typeof opts.minInfix === "function" ? opts.minInfix : opts.minInfix ? () => true : null;
 
-    const suffixes = opts.suffixes || DEFAULT_SUFFIXES;
+    const suffixes = (opts.suffixes || DEFAULT_SUFFIXES).map(s => s.toLowerCase());
 
     if (opts.global || minInfixFunction) {
         instance.addHook("onSend", (req, rep, payload, done) => {
-            if (payload && (opts.global || (minInfixFunction && req.mini))) {
+            if (payload && (opts.global || req.mini)) {
                 const contentType = rep.getHeader("content-type") || "";
                 if (contentType.includes("application/javascript") || contentType.includes("text/javascript")) {
                     if (minify(req, rep, payload, minifyJS, done)) { return; }
@@ -71,19 +70,21 @@ function plugin(instance, opts, done) {
                 && typeof req.context.config.url === "string"
                 && req.context.config.url.endsWith("/*")
                 && typeof req.params["*"] === "string"
-                && suffixes.some(s => req.params["*"].endsWith(".min." + s))
+                && suffixes.some(s => req.params["*"].toLowerCase().endsWith(".min." + s))
                 && minInfixFunction(req)
             ) {
                 req.mini = true;
-                req.params["*"] = req.params["*"].replace(/\.min/, "");
+                req.params["*"] = req.params["*"].replace(/\.min\./, ".");
             }
             done();
         })
     }
 
-    instance.ready().finally(() => {
+    instance.addHook("onReady", done => {
         if (minInfixFunction && instance[PLUGIN_SYMBOL].indexOf("fastify-static") === -1)
-            throw new Error("fastify-static is not present. Either register it or disable minInfix.")
+            done(new Error("fastify-static is not present. Either register it or disable minInfix."));
+        else
+            done();
     })
 
     function minifyHTML(value, callback) {
@@ -91,7 +92,12 @@ function plugin(instance, opts, done) {
         if (cachedValue != null) {
             return choose(cachedValue, callback);
         }
-        const result = htmlMinifier.minify(value, htmlOptions);
+        let result;
+        try {
+            result = htmlMinifier.minify(value, htmlOptions);
+        } catch (error) {
+            return choose(error, callback, true);
+        }
         setCachedValue(HTML_PREFIX, value, result);
         return choose(result, callback);
     }
@@ -117,8 +123,12 @@ function plugin(instance, opts, done) {
         if (cachedValue != null) {
             return choose(cachedValue, callback);
         }
-
-        const result = csso.minify(value, cssOptions).css;
+        let result;
+        try {
+            result = csso.minify(value, cssOptions).css;
+        } catch (error) {
+            return choose(error, callback, true);
+        }
         setCachedValue(CSS_PREFIX, value, result);
         return choose(result, callback);
     }
@@ -137,15 +147,15 @@ function plugin(instance, opts, done) {
     instance.decorate("minifyHTML", minifyHTML);
     instance.decorate("minifyJS", minifyJS);
     instance.decorate("minifyCSS", minifyCSS);
-    
+
     done();
 }
 
-function choose(result, callback) {
+function choose(result, callback, isError) {
     if (typeof callback === "function") {
-        return callback(null, result);
+        return isError ? callback(result) : callback(null, result);
     } else {
-        return Promise.resolve(result);
+        return isError ? Promise.reject(result) : Promise.resolve(result);
     }
 }
 
