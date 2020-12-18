@@ -14,7 +14,8 @@
     "fastify",
     "minify",
     "minifier",
-    "plugin"
+    "plugin",
+    "transform"
   ],
   "author": "Jelenkee",
   "license": "MIT",

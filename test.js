@@ -63,7 +63,7 @@ test("global", t => {
 test("minInfix", t => {
     t.plan(12);
     t.rejects(newFastify({ minInfix: true }).ready());
-    const fastify = newFastify({ minInfix: true, suffixes: ["css", "html"] });
+    const fastify = newFastify({ minInfix: (req, filePath) => filePath.endsWith(".css") || filePath.endsWith(".html") });
     fastify.register(fastifyStatic, { root: path.join(__dirname, "testfiles") });
     t.resolves(fastify.ready());
 
@@ -93,6 +93,38 @@ test("global & minInfix", t => {
             t.equal(results[0].body, results[1].body);
             t.ok(results[0].body.length < mainJS.length);
         });
+});
+
+test("transformers", t => {
+    t.plan(4);
+    const fastify = newFastify({
+        transformers: [
+            {
+                suffix: "txt",
+                contentType: "text/plain",
+                func: value => value.toUpperCase(),
+                decorate: "ttt"
+            },
+            {
+                suffix: "html",
+                func: null,
+            }
+        ],
+        minInfix: true,
+        global: true
+    });
+    fastify.register(fastifyStatic, { root: path.join(__dirname, "testfiles") });
+    fastify.get("/", (req, rep) => rep.type("text/plain").send("bar"));
+
+    fastify.inject().get("/public/test.txt").end().then(res => t.equal(res.body, "JAVASCRIPT"));
+    fastify.inject().get("/").end().then(res => t.equal(res.body, "BAR"));
+    fastify.inject().get("/index.min.html").end().then(res => t.equal(res.statusCode, 404));
+
+
+    fastify.ready(async () => {
+        t.equal(await fastify.ttt("foo"), "FOO");
+    });
+
 });
 
 test("options", t => {

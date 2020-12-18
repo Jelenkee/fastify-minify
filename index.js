@@ -5,10 +5,6 @@ const csso = require("csso");
 const LRU = require("quick-lru");
 const getStream = require("get-stream");
 
-const HTML_PREFIX = "%HTML§";
-const JS_PREFIX = "%JS§";
-const CSS_PREFIX = "%CSS§";
-
 const DEFAULT_JS_OPTIONS = {
     sourceMap: false,
     compress: true,
@@ -21,7 +17,6 @@ const DEFAULT_HTML_OPTIONS = {
     minifyCSS: true,
     minifyJS: DEFAULT_JS_OPTIONS
 };
-const DEFAULT_SUFFIXES = ["js", "css", "html"];
 
 const PLUGIN_SYMBOL = Symbol.for("registered-plugin");
 
@@ -36,101 +31,73 @@ function plugin(instance, opts, done) {
     const validate = typeof opts.validate === "function" ? opts.validate : () => true;
     const minInfixFunction = typeof opts.minInfix === "function" ? opts.minInfix : opts.minInfix ? () => true : null;
 
-    const suffixes = (opts.suffixes || DEFAULT_SUFFIXES).map(s => s.toLowerCase());
+    const defaultTransformers = [
+        {
+            suffix: "js",
+            contentType: ["application/javascript", "text/javascript"],
+            decorate: "minifyJS",
+            func: value => terser.minify(value, jsOptions).then(r => r.code),
+        },
+        {
+            suffix: "css",
+            contentType: "text/css",
+            decorate: "minifyCSS",
+            func: value => csso.minify(value, cssOptions).css,
+        },
+        {
+            suffix: "html",
+            contentType: "text/html",
+            decorate: "minifyHTML",
+            func: value => htmlMinifier.minify(value, htmlOptions),
+        }
+    ];
 
-    if (opts.global || minInfixFunction) {
-        instance.addHook("onSend", (req, rep, payload, done) => {
-            if (payload && (opts.global || req.mini)) {
-                const contentType = rep.getHeader("content-type") || "";
-                if (contentType.includes("application/javascript") || contentType.includes("text/javascript")) {
-                    if (minify(req, rep, payload, minifyJS, done)) { return; }
-                } else if (contentType.includes("text/css")) {
-                    if (minify(req, rep, payload, minifyCSS, done)) { return; }
-                } else if (contentType.includes("text/html")) {
-                    if (minify(req, rep, payload, minifyHTML, done)) { return; }
+    let transformers = defaultTransformers.slice();
+    if (Array.isArray(opts.transformers)) {
+        for (const t of opts.transformers) {
+            const oldTransformer = getTransformerForSuffix(t.suffix);
+            if (oldTransformer) {
+                Object.assign(oldTransformer, t);
+            } else {
+                transformers.push(t);
+            }
+        }
+    }
+    transformers = transformers.filter(t => t.func);
+
+    transformers.forEach(t => {
+        t.suffix = wrap(t.suffix).map(s => s.toLowerCase());
+        t.contentType = wrap(t.contentType).map(s => s.toLowerCase());
+        enhanceFunction(t);
+        if (t.decorate && typeof t.decorate === "string") {
+            instance.decorate(t.decorate, t.func)
+        }
+    });
+
+    const suffixes = transformers.flatMap(t => t.suffix);
+
+    function enhanceFunction(transformer) {
+        const prefix = transformer.suffix.toString();
+        const oldFunc = transformer.func;
+        const promisedFunc = async v => oldFunc(v);
+        const useCache = "useCache" in transformer ? transformer.useCache : true;
+        transformer.func = (value, callback) => {
+            if (useCache) {
+                const cachedValue = getCachedValue(prefix, value);
+                if (cachedValue != null) {
+                    return choose(cachedValue, callback);
                 }
             }
-            done(null, payload);
-        })
-        function minify(req, rep, payload, miniFunction, done) {
-            if (validate(req, rep, payload)) {
-                rep.header("content-length", null);
-                return toStringPromise(payload)
-                    .then(pl => miniFunction(pl))
-                    .then(pl => done(null, pl))
-                    .catch(err => done(err))
+            const promise = promisedFunc(value)
+                .then(result => useCache ? setCachedValue(prefix, value, result) : result);
+            if (typeof callback === "function") {
+                promise
+                    .then(result => callback(null, result))
+                    .catch(error => callback(error))
+            } else {
+                return promise;
             }
         }
-    }
-
-    if (minInfixFunction) {
-        instance.decorateRequest("mini", false);
-        instance.addHook("onRequest", (req, rep, done) => {
-            if (req.method === "GET"
-                && typeof req.context.config.url === "string"
-                && req.context.config.url.endsWith("/*")
-                && typeof req.params["*"] === "string"
-                && suffixes.some(s => req.params["*"].toLowerCase().endsWith(".min." + s))
-                && minInfixFunction(req)
-            ) {
-                req.mini = true;
-                req.params["*"] = req.params["*"].replace(/\.min\./, ".");
-            }
-            done();
-        })
-    }
-
-    instance.addHook("onReady", done => {
-        if (minInfixFunction && instance[PLUGIN_SYMBOL].indexOf("fastify-static") === -1)
-            done(new Error("fastify-static is not present. Either register it or disable minInfix."));
-        else
-            done();
-    })
-
-    function minifyHTML(value, callback) {
-        const cachedValue = getCachedValue(HTML_PREFIX, value);
-        if (cachedValue != null) {
-            return choose(cachedValue, callback);
-        }
-        let result;
-        try {
-            result = htmlMinifier.minify(value, htmlOptions);
-        } catch (error) {
-            return choose(error, callback, true);
-        }
-        setCachedValue(HTML_PREFIX, value, result);
-        return choose(result, callback);
-    }
-
-    function minifyJS(value, callback) {
-        const cachedValue = getCachedValue(JS_PREFIX, value);
-        if (cachedValue != null) {
-            return choose(cachedValue, callback);
-        }
-        const promise = terser.minify(value, jsOptions)
-            .then(result => setCachedValue(JS_PREFIX, value, result.code));
-        if (typeof callback === "function") {
-            promise
-                .then(result => callback(null, result))
-                .catch(error => callback(error))
-        } else {
-            return promise;
-        }
-    }
-
-    function minifyCSS(value, callback) {
-        const cachedValue = getCachedValue(CSS_PREFIX, value);
-        if (cachedValue != null) {
-            return choose(cachedValue, callback);
-        }
-        let result;
-        try {
-            result = csso.minify(value, cssOptions).css;
-        } catch (error) {
-            return choose(error, callback, true);
-        }
-        setCachedValue(CSS_PREFIX, value, result);
-        return choose(result, callback);
     }
 
     function getCachedValue(prefix, key) {
@@ -144,9 +111,59 @@ function plugin(instance, opts, done) {
         return value;
     }
 
-    instance.decorate("minifyHTML", minifyHTML);
-    instance.decorate("minifyJS", minifyJS);
-    instance.decorate("minifyCSS", minifyCSS);
+    if (opts.global || minInfixFunction) {
+        instance.addHook("onSend", (req, rep, payload, done) => {
+            if (payload && (opts.global || req.mini)) {
+                const contentType = rep.getHeader("content-type") || "";
+                const transformer = getTransformerForContentType(contentType);
+                if (transformer && validate(req, rep, payload)) {
+                    rep.header("content-length", null);
+                    toStringPromise(payload)
+                        .then(pl => transformer.func(pl))
+                        .then(pl => done(null, pl))
+                        .catch(err => done(err));
+                    return;
+                }
+            }
+            done(null, payload);
+        })
+    }
+
+    function getTransformerForContentType(contentType) {
+        contentType = contentType.toLowerCase();
+        return transformers.filter(t => t.contentType.some(ct => contentType.includes(ct)))[0];
+    }
+
+    if (minInfixFunction) {
+        instance.decorateRequest("mini", false);
+        instance.addHook("onRequest", (req, rep, done) => {
+            const filePath = req.params["*"];
+            if (req.method === "GET"
+                && typeof filePath === "string"
+                && typeof req.context.config.url === "string"
+                && req.context.config.url.endsWith("/*")
+                && suffixes.some(s => filePath.toLowerCase().endsWith(".min." + s))
+                && getTransformerForSuffix(filePath.substring(filePath.lastIndexOf(".") + 1).toLowerCase())
+                && minInfixFunction(req, filePath)
+            ) {
+                req.mini = true;
+                req.params["*"] = req.params["*"].replace(/\.min\./, ".");
+            }
+            done();
+        })
+    }
+
+    function getTransformerForSuffix(suffix) {
+        suffix = suffix.toLowerCase();
+        return transformers.filter(t => t.suffix.includes(suffix))[0];
+    }
+
+    instance.addHook("onReady", done => {
+        if (minInfixFunction && instance[PLUGIN_SYMBOL].indexOf("fastify-static") === -1)
+            done(new Error("fastify-static is not present. Either register it or disable minInfix."));
+        else
+            done();
+    })
 
     done();
 }
@@ -172,6 +189,11 @@ function toStringPromise(value) {
         return getStream(value);
     }
     throw new Error("unsupported type");
+}
+
+function wrap(value) {
+    if (!value) return [];
+    return Array.isArray(value) ? value : [value];
 }
 
 module.exports = fp(plugin, {

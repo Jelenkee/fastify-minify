@@ -2,7 +2,7 @@
 ![](https://badgen.net/npm/v/fastify-minify)
 ![](https://badgen.net/npm/dt/fastify-minify)
 
-A plugin for Fastify to minify HTML, JS and CSS.
+A plugin for Fastify to minify HTML, JS and CSS. And you can transform any response as your like.
 
 ## Usage
 
@@ -10,7 +10,6 @@ A plugin for Fastify to minify HTML, JS and CSS.
 const fastify = require("fastify")();
 
 fastify.register(require("fastify-minify"), {
-    suffixes: ["css"],
     cacheSize: 2000,
 });
 
@@ -31,12 +30,20 @@ By default no response is minified automatically. You can enable it with `global
 fastify.register(require("fastify-minify"), {
     cacheSize: 2500,
     global: true,
-    minInfix: (req) => req.query.mini === "true",
-    suffixes: ["js", "html" ,"css"],
+    minInfix: (req, filePath) => req.query.mini === "true",
     validate: (req, rep, payload) => typeof payload === "string",
     htmlOptions: { caseSensitive: true },
     jsOptions: { "keep-classnames": true },
     cssOptions: {},
+    transformers: [
+        {
+            suffix: "txt",
+            contentType: "text/plain",
+            func: value => value.toUpperCase(),
+            decorate: "upperCaseText",
+            useCache: false
+        }
+    ]
 });
 ```
 
@@ -51,15 +58,10 @@ fastify.register(require("fastify-minify"), {
 * type: boolean
 
 #### `minInfix`
-* If truthy or a function (`function(req)`) that returns a truthy value, a new path for static files will be added with min-infix e.g. `public/foo.min.css` for `public/foo.css`. You need to have [fastify-static](https://github.com/fastify/fastify-static) installed to use it. The function is called `onRequest`.
+* If truthy or a function (`function(req, filePath)`) that returns a truthy value, a new path for static files will be added with min-infix e.g. `public/foo.min.css` for `public/foo.css`. You need to have [fastify-static](https://github.com/fastify/fastify-static) installed to use it. The function is called `onRequest`.
 ❗ If you have static files with min-infix, they will be ignored.
 * default: `false`
 * type: boolean | function
-
-#### `suffixes`
-* List of suffixes for which a min-infix path will be added if `minInfix` is enabled. 
-* default: `["js", "html" ,"css"]`
-* type: array of strings
 
 #### `validate`
 * If this function (`function(req, rep, payload)`) returns a truthy value, the payload will be minified. It is called `onSend` and only if `global` or `minInfix` is enabled.
@@ -80,4 +82,25 @@ fastify.register(require("fastify-minify"), {
 * An object that will be passed to [csso](https://github.com/css/csso).
 * default: `{}`
 * type: object
+
+#### `transformers`
+* An array of transformers to transform any response. There are three transformers built-in (JS, HTML, CSS).
+    * `suffix`
+        * Suffix of files to transform. Used when `minInfix` is enabled.
+        * type: string | array of strings
+    * `contentType`
+        * Content type of response. Used when `global` or `minInfix` is enabled.
+        * type: string | array of strings
+    * `func`
+        * Function to transform the response.
+        * type: function (`string => string | string => Promise<string>`)
+    * `decorate` (optional)
+        * Method name of the decorated function.
+        * type: string
+    * `useCache` (optional)
+        * If true, cache is used when transforming. Enabled by default.
+        * type: boolean
+    * To disable one of the built-in transformers you can add a transformer with respective suffix e.g. `{ suffix: "js", func: null }`
+* default: `[]`
+* type: array
 
