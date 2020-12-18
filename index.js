@@ -177,4 +177,4 @@ function toStringPromise(value) {
 module.exports = fp(plugin, {
     fastify: ">=3.x.x",
     name: "fastify-minify",
-})
+});
