@@ -4,7 +4,6 @@
   "description": "Minification plugin for Fastify",
   "main": "index.js",
   "scripts": {
-    "server": "node testServer.js",
     "test": "tap --no-coverage-report --jobs=1 -t 30 test.js"
   },
   "repository": {
