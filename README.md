@@ -20,7 +20,7 @@ fastify.get("/minfiedCSS", function (req, rep) {
 
 ```
 
-Three methods are added to the fastify instance. `minifyHTML`, `minifyJS` and `minifyCSS`. All of them take a string as input and return a promise.
+Three methods are added to the fastify instance. `minifyHTML`, `minifyJS` and `minifyCSS` (See `transformers`). All of them take a string as input and return a promise.
 
 By default no response is minified automatically. You can enable it with `global` or `minInfix`.
 
@@ -53,7 +53,7 @@ fastify.register(require("fastify-minify"), {
 * type: number
 
 #### `global`
-* If truthy, every response with content type html, js or css will be minified. See `validate`.
+* If truthy, every response with content type html, js or css (See `transformers`) will be minified. See `validate`.
 * default: `false`
 * type: boolean
 

@@ -1,7 +1,7 @@
 {
   "name": "fastify-minify",
   "version": "1.0.0",
-  "description": "Minification plugin for Fastify",
+  "description": "Minification and transformation plugin for Fastify",
   "main": "index.js",
   "scripts": {
     "test": "tap --no-coverage-report --jobs=1 -t 30 test.js"
