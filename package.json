@@ -1,0 +1,40 @@
+{
+  "name": "fastify-minify",
+  "version": "1.1.0",
+  "description": "Minification and transformation plugin for Fastify",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap --no-coverage-report --jobs=1 -t 60 test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jelenkee/fastify-minify.git"
+  },
+  "keywords": [
+    "fastify",
+    "minify",
+    "minifier",
+    "plugin",
+    "transform"
+  ],
+  "author": "Jelenkee",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Jelenkee/fastify-minify/issues"
+  },
+  "homepage": "https://github.com/Jelenkee/fastify-minify#readme",
+  "dependencies": {
+    "array-flat-polyfill": "^1.0.1",
+    "csso": "^4.2.0",
+    "fastify-plugin": "^3.0.0",
+    "get-stream": "^6.0.0",
+    "html-minifier-terser": "^5.1.1",
+    "quick-lru": "^5.1.1",
+    "terser": "^5.5.1"
+  },
+  "devDependencies": {
+    "fastify": "^3.9.2",
+    "fastify-static": "^3.3.0",
+    "tap": "^14.11.0"
+  }
+}
