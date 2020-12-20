@@ -56,7 +56,7 @@ function plugin(instance, opts, done) {
     let transformers = defaultTransformers.slice();
     if (Array.isArray(opts.transformers)) {
         for (const t of opts.transformers) {
-            const oldTransformer = getTransformerForSuffix(t.suffix);
+            const oldTransformer = getTransformerForSuffix(t.suffix || "");
             if (oldTransformer) {
                 Object.assign(oldTransformer, t);
             } else {

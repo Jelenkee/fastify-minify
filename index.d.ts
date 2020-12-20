@@ -17,14 +17,14 @@ export interface Transformer {
 }
 
 export interface FastifyMinifyOptions {
-    cacheSize: number;
-    global: boolean;
-    minInfix: boolean | ((req: FastifyRequest) => void);
-    validate: (req: FastifyRequest, rep: FastifyReply, payload: string | Buffer | Stream) => boolean;
-    htmlOptions: Options;
-    jsOptions: TerserMinifyOptions;
-    cssOptions: CSSOOptions;
-    transformers: Transformer[];
+    cacheSize?: number;
+    global?: boolean;
+    minInfix?: boolean | ((req: FastifyRequest) => void);
+    validate?: (req: FastifyRequest, rep: FastifyReply, payload: string | Buffer | Stream) => boolean;
+    htmlOptions?: Options;
+    jsOptions?: TerserMinifyOptions;
+    cssOptions?: CSSOOptions;
+    transformers?: Transformer[];
 }
 
 declare const fastifyMinify: FastifyPluginCallback<FastifyMinifyOptions>;
