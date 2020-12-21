@@ -10,7 +10,7 @@ A plugin for Fastify to minify HTML, JS and CSS. And you can transform any respo
 const fastify = require("fastify")();
 
 fastify.register(require("fastify-minify"), {
-    cacheSize: 2000,
+    cache: 2000,
 });
 
 fastify.get("/minfiedCSS", function (req, rep) {
@@ -28,7 +28,7 @@ By default no response is minified automatically. You can enable it with `global
 
 ```js
 fastify.register(require("fastify-minify"), {
-    cacheSize: 2500,
+    cache: 2500,
     global: true,
     minInfix: (req, filePath) => req.query.mini === "true",
     validate: (req, rep, payload) => typeof payload === "string",
@@ -47,10 +47,10 @@ fastify.register(require("fastify-minify"), {
 });
 ```
 
-#### `cacheSize`
-* Size of the lru-cache. It is used to cache the minification results. Use a falsy value to disable the cache.
+#### `cache`
+* Size of the lru-cache or a cache object with the functions `set(string, string)` and `get(string)=>string | get(string)=>Promise<string>`. [quick-lru](https://github.com/sindresorhus/quick-lru) is used by default. It is used to cache the minification results.
 * default: `0`
-* type: number
+* type: number | object
 
 #### `global`
 * If truthy, every response with content type html, js or css (See `transformers`) will be minified. See `validate`.

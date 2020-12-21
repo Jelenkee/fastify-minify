@@ -16,8 +16,13 @@ export interface Transformer {
     useCache?: boolean;
 }
 
+export interface Cache {
+    set: (key: string, value: string) => void;
+    get: ((key: string) => string) | ((key: string) => Promise<string>);
+}
+
 export interface FastifyMinifyOptions {
-    cacheSize?: number;
+    cache?: number | Cache;
     global?: boolean;
     minInfix?: boolean | ((req: FastifyRequest) => void);
     validate?: (req: FastifyRequest, rep: FastifyReply, payload: string | Buffer | Stream) => boolean;

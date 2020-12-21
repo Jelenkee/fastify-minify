@@ -150,9 +150,9 @@ test("options", t => {
 });
 
 test("cache", t => {
-    t.plan(7)
+    t.plan(9)
 
-    const fastify = newFastify({ cacheSize: 100 });
+    const fastify = newFastify({ cache: 100 });
 
     fastify.get("/", (req, rep) => {
         fastify.minifyCSS(mainCSS).then(r => rep.type("text/css").send(r))
@@ -179,6 +179,24 @@ test("cache", t => {
             t.ok(time3 - time2 < 10);
         });
     });
+
+    let count = 0;
+    const fastify2 = newFastify({
+        cache: {
+            set: (k, v) => count++,
+            get: (k) => count === 0 ? null : Promise.resolve("party")
+        }
+    });
+    fastify2.get("/", (req, rep) => {
+        fastify2.minifyCSS(mainCSS).then(r => rep.type("text/css").send(r))
+    });
+
+    fastify2.inject().get("/").end()
+        .then(res => fastify2.inject().get("/").end()
+            .then(res => {
+                t.equal(res.body, "party");
+                t.equal(count, 1);
+            }));
 });
 
 

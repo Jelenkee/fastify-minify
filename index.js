@@ -27,8 +27,9 @@ function plugin(instance, opts, done) {
     const jsOptions = Object.assign({}, DEFAULT_JS_OPTIONS, opts.jsOptions);
     const cssOptions = Object.assign({}, DEFAULT_CSS_OPTIONS, opts.cssOptions);
 
-    const cacheSize = opts.cacheSize == null ? null : opts.cacheSize;
-    const lru = cacheSize ? new LRU({ maxSize: cacheSize }) : null;
+    const lru = typeof opts.cache === "number" ? new LRU({ maxSize: opts.cache })
+        : opts.cache && typeof opts.cache.get === "function" && typeof opts.cache.set === "function"
+            ? opts.cache : null;
     const validate = typeof opts.validate === "function" ? opts.validate : () => true;
     const minInfixFunction = typeof opts.minInfix === "function" ? opts.minInfix : opts.minInfix ? () => true : null;
 
@@ -82,15 +83,18 @@ function plugin(instance, opts, done) {
         const oldFunc = transformer.func;
         const promisedFunc = async v => oldFunc(v);
         const useCache = "useCache" in transformer ? transformer.useCache : true;
-        transformer.func = (value) => {
+        transformer.func = async value => {
             if (useCache) {
-                const cachedValue = getCachedValue(prefix, value);
+                const cachedValue = await getCachedValue(prefix, value);
                 if (cachedValue != null) {
-                    return Promise.resolve(cachedValue);
+                    return cachedValue;
                 }
             }
-            return promisedFunc(value)
-                .then(result => useCache ? setCachedValue(prefix, value, result) : result);
+            const result = await promisedFunc(value);
+            if (useCache) {
+                setCachedValue(prefix, value, result);
+            }
+            return result;
         }
     }
 
