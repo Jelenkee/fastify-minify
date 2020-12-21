@@ -13,6 +13,7 @@
   "keywords": [
     "fastify",
     "minify",
+    "uglify",
     "minifier",
     "plugin",
     "transform"

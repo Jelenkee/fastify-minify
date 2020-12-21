@@ -2,7 +2,7 @@
 ![](https://badgen.net/npm/v/fastify-minify)
 ![](https://badgen.net/npm/dt/fastify-minify)
 
-A plugin for Fastify to minify HTML, JS and CSS. And you can transform any response as your like.
+A plugin for Fastify to minify HTML, JS, JSON and CSS. And you can transform any response as your like.
 
 ## Usage
 
@@ -84,7 +84,7 @@ fastify.register(require("fastify-minify"), {
 * type: object
 
 #### `transformers`
-* An array of transformers to transform any response. There are three transformers built-in (JS, HTML, CSS).
+* An array of transformers to transform any response. There are 4 transformers built-in (JS, HTML, CSS, JSON).
     * `suffix`
         * Suffix of files to transform. Used when `minInfix` is enabled.
         * type: string | array of strings

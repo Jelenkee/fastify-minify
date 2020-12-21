@@ -51,6 +51,11 @@ function plugin(instance, opts, done) {
             contentType: "text/html",
             decorate: "minifyHTML",
             func: value => htmlMinifier.minify(value, htmlOptions),
+        },
+        {
+            suffix: "json",
+            contentType: "application/json",
+            func: value => JSON.stringify(JSON.parse(value), null, 0)
         }
     ];
 
