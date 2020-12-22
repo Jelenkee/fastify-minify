@@ -1,6 +1,6 @@
 {
   "name": "fastify-minify",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "description": "Minification and transformation plugin for Fastify",
   "main": "index.js",
   "scripts": {

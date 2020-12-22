@@ -81,8 +81,6 @@ function plugin(instance, opts, done) {
         }
     });
 
-    const suffixes = transformers.flatMap(t => t.suffix);
-
     function enhanceFunction(transformer) {
         const prefix = transformer.suffix.toString();
         const oldFunc = transformer.func;
@@ -122,7 +120,7 @@ function plugin(instance, opts, done) {
                 if (transformer && validate(req, rep, payload)) {
                     rep.header("content-length", null);
                     toStringPromise(payload)
-                        .then(pl => transformer.func(pl))
+                        .then(transformer.func)
                         .then(pl => done(null, pl))
                         .catch(err => done(err));
                     return;
@@ -136,6 +134,8 @@ function plugin(instance, opts, done) {
         contentType = contentType.toLowerCase();
         return transformers.filter(t => t.contentType.some(ct => contentType.includes(ct)))[0];
     }
+
+    const suffixes = transformers.flatMap(t => t.suffix);
 
     if (minInfixFunction) {
         instance.decorateRequest("mini", false);
