@@ -1,6 +1,6 @@
 # fastify-minify
-![](https://badgen.net/npm/v/fastify-minify)
-![](https://badgen.net/npm/dt/fastify-minify)
+[![](https://badgen.net/npm/v/fastify-minify)](https://www.npmjs.com/package/fastify-minify)
+[![](https://badgen.net/npm/dt/fastify-minify)](https://www.npmjs.com/package/fastify-minify)
 
 A plugin for Fastify to minify HTML, JS, JSON and CSS. And you can transform any response as your like.
 
@@ -53,7 +53,7 @@ fastify.register(require("fastify-minify"), {
 * type: number | object
 
 #### `global`
-* If truthy, every response with content type html, js or css (See `transformers`) will be minified. See `validate`.
+* If truthy, every response with content type html, js, json or css (See `transformers`) will be minified. See `validate`.
 * default: `false`
 * type: boolean
 
