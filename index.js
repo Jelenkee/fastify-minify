@@ -2,7 +2,7 @@ const fp = require("fastify-plugin");
 const htmlMinifier = require("html-minifier-terser");
 const terser = require("terser");
 const csso = require("csso");
-const LRU = require("quick-lru");
+const LRU = require("tiny-lru");
 const getStream = require("get-stream");
 require("array-flat-polyfill");
 
@@ -27,7 +27,7 @@ function plugin(instance, opts, done) {
     const jsOptions = Object.assign({}, DEFAULT_JS_OPTIONS, opts.jsOptions);
     const cssOptions = Object.assign({}, DEFAULT_CSS_OPTIONS, opts.cssOptions);
 
-    const lru = typeof opts.cache === "number" ? new LRU({ maxSize: opts.cache })
+    const lru = typeof opts.cache === "number" ? LRU(opts.cache)
         : opts.cache && typeof opts.cache.get === "function" && typeof opts.cache.set === "function"
             ? opts.cache : null;
     const validate = typeof opts.validate === "function" ? opts.validate : () => true;

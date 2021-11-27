@@ -28,14 +28,14 @@
     "array-flat-polyfill": "^1.0.1",
     "csso": "^4.2.0",
     "fastify-plugin": "^3.0.0",
-    "get-stream": "^6.0.0",
-    "html-minifier-terser": "^5.1.1",
-    "quick-lru": "^5.1.1",
-    "terser": "^5.5.1"
+    "get-stream": "^6.0.1",
+    "html-minifier-terser": "^6.1.0",
+    "terser": "^5.10.0",
+    "tiny-lru": "^7.0.6"
   },
   "devDependencies": {
-    "fastify": "^3.9.2",
-    "fastify-static": "^3.3.0",
-    "tap": "^14.11.0"
+    "fastify": "^3.24.0",
+    "fastify-static": "^4.5.0",
+    "tap": "^15.1.5"
   }
 }

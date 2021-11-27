@@ -48,7 +48,7 @@ fastify.register(require("fastify-minify"), {
 ```
 
 #### `cache`
-* Size of the lru-cache or a cache object with the functions `set(string, string)` and `get(string)=>string | get(string)=>Promise<string>`. [quick-lru](https://github.com/sindresorhus/quick-lru) is used by default. It is used to cache the minification results.
+* Size of the lru-cache or a cache object with the functions `set(string, string)` and `get(string)=>string | get(string)=>Promise<string>`. [tiny-lru](https://github.com/avoidwork/tiny-lru) is used by default. It is used to cache the minification results.
 * default: `0`
 * type: number | object
 
